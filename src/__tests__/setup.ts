@@ -12,6 +12,9 @@ beforeEach(async () => {
   await prisma.userRole.deleteMany();
   await prisma.user.deleteMany();
   await prisma.role.deleteMany();
+
+  // Wait a bit to avoid rate limit interference between tests
+  await new Promise((resolve) => setTimeout(resolve, 100));
 });
 
 afterAll(async () => {
