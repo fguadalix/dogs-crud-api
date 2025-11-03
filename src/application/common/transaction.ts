@@ -1,10 +1,4 @@
-import { PrismaClient } from '@prisma/client';
 import prisma from '../../infrastructure/database/prisma';
-
-export type TransactionClient = Omit<
-  PrismaClient,
-  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'
->;
 
 export class TransactionManager {
   /**
@@ -13,7 +7,7 @@ export class TransactionManager {
    * @returns Promise with the result of the last operation
    */
   static async execute<T>(
-    operations: ((tx: TransactionClient) => Promise<T>)[]
+    operations: ((tx: any) => Promise<T>)[]
   ): Promise<T[]> {
     return await prisma.$transaction(async (tx) => {
       const results: T[] = [];
@@ -31,7 +25,7 @@ export class TransactionManager {
    * @returns Promise with the result
    */
   static async executeSingle<T>(
-    operation: (tx: TransactionClient) => Promise<T>
+    operation: (tx: any) => Promise<T>
   ): Promise<T> {
     return await prisma.$transaction(operation);
   }
