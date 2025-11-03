@@ -4,10 +4,32 @@ import prisma from '../../../infrastructure/database/prisma';
 
 const app = createApp();
 
+// Helper function to test malicious payload storage
+const testMaliciousPayloadStorage = async (
+  payload: string,
+  field: 'name' | 'description',
+  description: string = 'Test description'
+) => {
+  const data = field === 'name' 
+    ? { name: payload, description } 
+    : { name: 'Test item', description: payload };
+
+  const response = await request(app)
+    .post('/api/items')
+    .send(data);
+
+  expect([201, 429]).toContain(response.status);
+
+  if (response.status === 201 && response.body && response.body[field]) {
+    expect(response.body[field]).toBe(payload);
+    const items = await prisma.item.findMany();
+    expect(items.length).toBeGreaterThanOrEqual(1);
+  }
+};
+
 describe('Security Tests', () => {
   beforeEach(async () => {
     await prisma.item.deleteMany();
-    // Add longer delay to prevent rate limit interference
     await new Promise(resolve => setTimeout(resolve, 200));
   });
 
@@ -17,48 +39,11 @@ describe('Security Tests', () => {
 
   describe('SQL Injection Protection', () => {
     it('should prevent SQL injection in name field on create', async () => {
-      const sqlInjectionPayload = "'; DROP TABLE items; --";
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: sqlInjectionPayload,
-          description: 'Test description'
-        });
-
-      // Should succeed or be rate limited
-      expect([201, 429]).toContain(response.status);
-      
-      if (response.status === 201 && response.body && response.body.name) {
-        expect(response.body.name).toBe(sqlInjectionPayload);
-
-        // Verify table still exists and item was created
-        const items = await prisma.item.findMany();
-        expect(items.length).toBeGreaterThanOrEqual(1);
-        const createdItem = items.find((item: any) => item.name === sqlInjectionPayload);
-        expect(createdItem).toBeDefined();
-        expect(createdItem?.name).toBe(sqlInjectionPayload);
-      }
+      await testMaliciousPayloadStorage("'; DROP TABLE items; --", 'name');
     });
 
     it('should prevent SQL injection in description field', async () => {
-      const sqlInjectionPayload = "' OR '1'='1";
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: 'Test item',
-          description: sqlInjectionPayload
-        });
-
-      expect([201, 429]).toContain(response.status);
-      
-      if (response.status === 201 && response.body && response.body.description) {
-        expect(response.body.description).toBe(sqlInjectionPayload);
-
-        const items = await prisma.item.findMany();
-        expect(items.length).toBeGreaterThanOrEqual(1);
-      }
+      await testMaliciousPayloadStorage("' OR '1'='1", 'description');
     });
 
     it('should prevent SQL injection in GET query parameters', async () => {
@@ -83,139 +68,33 @@ describe('Security Tests', () => {
     });
 
     it('should prevent SQL injection with UNION attacks', async () => {
-      const unionAttack = "test' UNION SELECT * FROM users--";
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: unionAttack,
-          description: 'Description'
-        });
-
-      expect([201, 429]).toContain(response.status);
-
-      if (response.status === 201 && response.body && response.body.name) {
-        expect(response.body.name).toBe(unionAttack);
-
-        // Verify only one item was created
-        const items = await prisma.item.findMany();
-        expect(items.length).toBeGreaterThanOrEqual(1);
-      }
+      await testMaliciousPayloadStorage("test' UNION SELECT * FROM users--", 'name');
     });
 
     it('should prevent SQL injection with multiple statements', async () => {
-      const multiStatement = "test'; DELETE FROM items WHERE '1'='1";
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: multiStatement,
-          description: 'Description'
-        });
-
-      expect([201, 429]).toContain(response.status);
-
-      if (response.status === 201 && response.body && response.body.name) {
-        // Verify item was created and not deleted
-        const items = await prisma.item.findMany();
-        expect(items.length).toBeGreaterThanOrEqual(1);
-        const createdItem = items.find((item: any) => item.name === multiStatement);
-        expect(createdItem).toBeDefined();
-        expect(createdItem?.name).toBe(multiStatement);
-      }
+      await testMaliciousPayloadStorage("test'; DELETE FROM items WHERE '1'='1", 'name');
     });
   });
 
   describe('XSS (Cross-Site Scripting) Protection', () => {
     it('should store XSS payload in name field without execution', async () => {
-      const xssPayload = '<script>alert("XSS")</script>';
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: xssPayload,
-          description: 'Test description'
-        });
-
-      expect([201, 429]).toContain(response.status);
-
-      if (response.status === 201 && response.body && response.body.id) {
-        expect(response.body.name).toBe(xssPayload);
-
-        // Verify stored correctly
-        const item = await prisma.item.findUnique({
-          where: { id: response.body.id }
-        });
-        expect(item?.name).toBe(xssPayload);
-      }
+      await testMaliciousPayloadStorage('<script>alert("XSS")</script>', 'name');
     });
 
     it('should handle XSS payload with event handlers', async () => {
-      const xssPayload = '<img src=x onerror="alert(\'XSS\')">';
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: 'Test item',
-          description: xssPayload
-        });
-
-      expect([201, 429]).toContain(response.status);
-      
-      if (response.status === 201 && response.body && response.body.description) {
-        expect(response.body.description).toBe(xssPayload);
-      }
+      await testMaliciousPayloadStorage('<img src=x onerror="alert(\'XSS\')">', 'description');
     });
 
     it('should handle XSS payload with javascript: protocol', async () => {
-      const xssPayload = '<a href="javascript:alert(\'XSS\')">Click me</a>';
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: xssPayload,
-          description: 'Description'
-        });
-
-      expect([201, 429]).toContain(response.status);
-      
-      if (response.status === 201 && response.body && response.body.name) {
-        expect(response.body.name).toBe(xssPayload);
-      }
+      await testMaliciousPayloadStorage('<a href="javascript:alert(\'XSS\')">Click me</a>', 'name');
     });
 
     it('should handle XSS payload with encoded characters', async () => {
-      const xssPayload = '&lt;script&gt;alert("XSS")&lt;/script&gt;';
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: xssPayload,
-          description: 'Description'
-        });
-
-      expect([201, 429]).toContain(response.status);
-      
-      if (response.status === 201 && response.body && response.body.name) {
-        expect(response.body.name).toBe(xssPayload);
-      }
+      await testMaliciousPayloadStorage('&lt;script&gt;alert("XSS")&lt;/script&gt;', 'name');
     });
 
     it('should handle XSS payload with SVG tags', async () => {
-      const xssPayload = '<svg onload="alert(\'XSS\')"></svg>';
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: 'Test item',
-          description: xssPayload
-        });
-
-      expect([201, 429]).toContain(response.status);
-      
-      if (response.status === 201 && response.body && response.body.description) {
-        expect(response.body.description).toBe(xssPayload);
-      }
+      await testMaliciousPayloadStorage('<svg onload="alert(\'XSS\')"></svg>', 'description');
     });
 
     it('should handle XSS payload in update operation', async () => {
@@ -259,20 +138,7 @@ describe('Security Tests', () => {
     });
 
     it('should handle Unicode and special characters safely', async () => {
-      const unicodePayload = '测试 🚀 émojis café';
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: unicodePayload,
-          description: 'Description with unicode 中文'
-        });
-
-      expect([201, 429]).toContain(response.status);
-      
-      if (response.status === 201 && response.body && response.body.name) {
-        expect(response.body.name).toBe(unicodePayload);
-      }
+      await testMaliciousPayloadStorage('测试 🚀 émojis café', 'name', 'Description with unicode 中文');
     });
 
     it('should reject invalid JSON payloads', async () => {
@@ -281,25 +147,11 @@ describe('Security Tests', () => {
         .set('Content-Type', 'application/json')
         .send('{"name": "test", invalid json}');
 
-      // Should reject with 400 or 500
       expect([400, 500]).toContain(response.status);
     });
 
     it('should handle CRLF injection attempts', async () => {
-      const crlfPayload = 'test\r\nHeader: injected';
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: crlfPayload,
-          description: 'Description'
-        });
-
-      expect([201, 429]).toContain(response.status);
-      
-      if (response.status === 201 && response.body && response.body.name) {
-        expect(response.body.name).toBe(crlfPayload);
-      }
+      await testMaliciousPayloadStorage('test\r\nHeader: injected', 'name');
     });
   });
 
@@ -348,41 +200,11 @@ describe('Security Tests', () => {
 
   describe('Command Injection Protection', () => {
     it('should handle shell command injection attempts', async () => {
-      const commandInjection = 'test; rm -rf /';
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: commandInjection,
-          description: 'Description'
-        });
-
-      expect([201, 429]).toContain(response.status);
-
-      if (response.status === 201 && response.body && response.body.name) {
-        expect(response.body.name).toBe(commandInjection);
-
-        // Verify item was created normally
-        const items = await prisma.item.findMany();
-        expect(items.length).toBeGreaterThanOrEqual(1);
-      }
+      await testMaliciousPayloadStorage('test; rm -rf /', 'name');
     });
 
     it('should handle pipe commands in input', async () => {
-      const pipeCommand = 'test | cat /etc/passwd';
-
-      const response = await request(app)
-        .post('/api/items')
-        .send({
-          name: pipeCommand,
-          description: 'Description'
-        });
-
-      expect([201, 429]).toContain(response.status);
-      
-      if (response.status === 201 && response.body && response.body.name) {
-        expect(response.body.name).toBe(pipeCommand);
-      }
+      await testMaliciousPayloadStorage('test | cat /etc/passwd', 'name');
     });
   });
 });

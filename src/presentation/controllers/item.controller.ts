@@ -16,6 +16,7 @@ import {
   createMultipleItemsSchema,
 } from '../validators/item.validator';
 import { AppError, asyncHandler } from '../middleware/error.middleware';
+import { HTTP_STATUS, RESPONSE_STATUS } from '../constants/http-status';
 
 export class ItemController {
   // GET /api/items
@@ -23,8 +24,8 @@ export class ItemController {
     const query = new GetAllItemsQuery();
     const items = await query.execute();
 
-    res.status(200).json({
-      status: 'success',
+    res.status(HTTP_STATUS.OK).json({
+      status: RESPONSE_STATUS.SUCCESS,
       data: { items },
     });
   });
@@ -37,11 +38,11 @@ export class ItemController {
     const item = await query.execute();
 
     if (!item) {
-      throw new AppError(404, 'Item not found');
+      throw new AppError(HTTP_STATUS.NOT_FOUND, 'Item not found');
     }
 
-    res.status(200).json({
-      status: 'success',
+    res.status(HTTP_STATUS.OK).json({
+      status: RESPONSE_STATUS.SUCCESS,
       data: { item },
     });
   });
@@ -53,8 +54,8 @@ export class ItemController {
     const command = new CreateItemCommand(data);
     const item = await command.execute();
 
-    res.status(201).json({
-      status: 'success',
+    res.status(HTTP_STATUS.CREATED).json({
+      status: RESPONSE_STATUS.SUCCESS,
       data: { item },
     });
   });
@@ -67,8 +68,8 @@ export class ItemController {
     const command = new UpdateItemCommand(id, data);
     const item = await command.execute();
 
-    res.status(200).json({
-      status: 'success',
+    res.status(HTTP_STATUS.OK).json({
+      status: RESPONSE_STATUS.SUCCESS,
       data: { item },
     });
   });
@@ -80,7 +81,7 @@ export class ItemController {
     const command = new DeleteItemCommand(id);
     await command.execute();
 
-    res.status(204).send();
+    res.status(HTTP_STATUS.NO_CONTENT).send();
   });
 
   // POST /api/items/batch (Transactional)
@@ -90,8 +91,8 @@ export class ItemController {
     const command = new CreateMultipleItemsCommand(items);
     const createdItems = await command.execute();
 
-    res.status(201).json({
-      status: 'success',
+    res.status(HTTP_STATUS.CREATED).json({
+      status: RESPONSE_STATUS.SUCCESS,
       data: { items: createdItems },
     });
   });
