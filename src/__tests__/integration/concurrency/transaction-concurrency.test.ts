@@ -197,7 +197,7 @@ describe('Transaction Concurrency Tests', () => {
       });
 
       // Simulate multiple users reading, modifying, and writing back
-      const incrementOperations = Array.from({ length: 10 }, async (_, i) => {
+      const incrementOperations = Array.from({ length: 10 }, async () => {
         // Read current value
         const readResponse = await request(app).get(`/api/items/${item.id}`);
         const currentValue = parseInt(
@@ -253,7 +253,6 @@ describe('Transaction Concurrency Tests', () => {
 
       // Both operations can succeed due to timing
       // This demonstrates race condition behavior
-      const statuses = [updateResponse.status, deleteResponse.status];
       
       // Both operations should return valid HTTP status codes
       expect([200, 204, 404]).toContain(updateResponse.status);
