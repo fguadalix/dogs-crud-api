@@ -1,0 +1,114 @@
+### Dogs CRUD API - HTTP Requests Examples
+### You can use this file with REST Client extension in VS Code
+
+@baseUrl = http://localhost:3000
+@contentType = application/json
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Get all items
+GET {{baseUrl}}/api/items
+
+### Get item by ID
+GET {{baseUrl}}/api/items/1
+
+### Create a new item
+POST {{baseUrl}}/api/items
+Content-Type: {{contentType}}
+
+{
+  "name": "Golden Retriever",
+  "description": "Friendly and loyal dog breed"
+}
+
+### Create another item
+POST {{baseUrl}}/api/items
+Content-Type: {{contentType}}
+
+{
+  "name": "Labrador",
+  "description": "Energetic and playful"
+}
+
+### Update an item
+PUT {{baseUrl}}/api/items/1
+Content-Type: {{contentType}}
+
+{
+  "name": "Golden Retriever (Updated)",
+  "description": "Very friendly and loyal dog breed"
+}
+
+### Update only name
+PUT {{baseUrl}}/api/items/1
+Content-Type: {{contentType}}
+
+{
+  "name": "Golden Retriever v2"
+}
+
+### Delete an item
+DELETE {{baseUrl}}/api/items/1
+
+### Create multiple items in a transaction (batch)
+POST {{baseUrl}}/api/items/batch
+Content-Type: {{contentType}}
+
+{
+  "items": [
+    {
+      "name": "Beagle",
+      "description": "Small hunting dog"
+    },
+    {
+      "name": "Bulldog",
+      "description": "Muscular and wrinkled"
+    },
+    {
+      "name": "Poodle",
+      "description": "Intelligent and elegant"
+    }
+  ]
+}
+
+### Error case: Create item with duplicate name
+POST {{baseUrl}}/api/items
+Content-Type: {{contentType}}
+
+{
+  "name": "Golden Retriever"
+}
+
+### Error case: Create item without name
+POST {{baseUrl}}/api/items
+Content-Type: {{contentType}}
+
+{
+  "description": "No name provided"
+}
+
+### Error case: Get non-existent item
+GET {{baseUrl}}/api/items/999999
+
+### Error case: Invalid ID format
+GET {{baseUrl}}/api/items/invalid-id
+
+### Transaction rollback example
+### This will fail because one item has a duplicate name
+POST {{baseUrl}}/api/items/batch
+Content-Type: {{contentType}}
+
+{
+  "items": [
+    {
+      "name": "Unique Dog 1"
+    },
+    {
+      "name": "Golden Retriever"
+    },
+    {
+      "name": "Unique Dog 2"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+preset: "default"
+configurePreset:
+  outputPath: "prisma/migrations"
