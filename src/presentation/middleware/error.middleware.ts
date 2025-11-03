@@ -11,12 +11,14 @@ export class AppError extends Error {
   }
 }
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export const errorHandler = (
   err: Error,
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
+  /* eslint-enable @typescript-eslint/no-unused-vars */
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       status: 'error',
@@ -48,7 +50,9 @@ export const errorHandler = (
   });
 };
 
-export const asyncHandler = (fn: Function) => {
+export const asyncHandler = (
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
+) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
