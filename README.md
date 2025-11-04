@@ -9,39 +9,59 @@ API REST con Node.js, TypeScript, PostgreSQL, Prisma y patrón CQRS.
 - ✅ **Prisma** - ORM moderno con migraciones
 - ✅ **CQRS Pattern** - Separación de Commands y Queries
 - ✅ **Transacciones** - Operaciones atómicas con Prisma
-- ✅ **Tests Completos** - Tests unitarios e integración con Jest
+- ✅ **Tests Completos** - 72 tests con 96%+ coverage
+- ✅ **Rate Limiting** - Protección contra abuso de API
+- ✅ **Security Tests** - 21 tests de seguridad (SQL injection, XSS, etc.)
 - ✅ **CI/CD** - GitHub Actions para tests automáticos
 - ✅ **Express** - Framework web minimalista
 - ✅ **Validación** - Validación de datos con Zod
 
-## 📋 Requisitos Previos
+## 🎯 Quick Start
 
-- Node.js 18+ 
-- PostgreSQL 13+
-- npm o yarn
+**La forma más rápida de probar la API:**
 
-## 🛠️ Instalación
-
-1. **Clonar el repositorio** (si aplica)
 ```bash
-cd /home/ubuntu/dogs-crud-api
+# Setup inicial (solo primera vez)
+./test-local.sh setup
+
+# Iniciar servidor
+./test-local.sh start
+
+# En otra terminal - probar API
+./test-local.sh test-api
 ```
 
-2. **Instalar dependencias**
+📖 **Ver guía completa**: [LOCAL_TESTING.md](./LOCAL_TESTING.md)
+
+## 📋 Requisitos Previos
+
+- Node.js 20+ 
+- PostgreSQL 15+
+- Docker & Docker Compose
+- npm
+
+## 🛠️ Instalación Manual
+
+1. **Instalar dependencias**
 ```bash
 npm install
 ```
 
-3. **Configurar variables de entorno**
+2. **Configurar variables de entorno**
 ```bash
 cp .env.example .env
 ```
 
 Edita `.env` con tus credenciales de PostgreSQL:
 ```env
-DATABASE_URL="postgresql://user:password@localhost:5432/dogs_crud_db?schema=public"
+DATABASE_URL="postgresql://dev_user:dev_password@localhost:5435/dogs_crud_db?schema=public"
 PORT=3000
 NODE_ENV=development
+```
+
+3. **Iniciar PostgreSQL con Docker**
+```bash
+docker-compose up -d
 ```
 
 4. **Generar cliente de Prisma**
