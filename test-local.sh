@@ -62,6 +62,17 @@ check_dependencies() {
     fi
     print_success "Docker está instalado"
     
+    # Verificar permisos de Docker
+    if ! docker ps &> /dev/null; then
+        print_error "No tienes permisos para usar Docker"
+        print_info "Solución: Ejecuta los siguientes comandos:"
+        echo "  sudo usermod -aG docker \$USER"
+        echo "  newgrp docker"
+        print_info "O ejecuta este script con sudo"
+        exit 1
+    fi
+    print_success "Permisos de Docker OK"
+    
     if ! command -v node &> /dev/null; then
         print_error "Node.js no está instalado"
         exit 1
@@ -155,8 +166,29 @@ stop_server() {
     print_success "Servidor detenido"
     
     print_info "Deteniendo contenedores Docker..."
-    docker-compose stop
-    print_success "Contenedores detenidos"
+    
+    # Intentar stop normal
+    if docker compose stop 2>/dev/null; then
+        print_success "Contenedores detenidos"
+        return 0
+    fi
+    
+    # Intentar con sudo
+    if sudo docker compose stop 2>/dev/null; then
+        print_success "Contenedores detenidos con sudo"
+        return 0
+    fi
+    
+    # Si falla, informar y dar alternativas
+    print_error "No se pudieron detener los contenedores normalmente"
+    print_info ""
+    print_info "Opciones alternativas:"
+    print_info "1. Reiniciar Docker daemon:"
+    echo "   sudo systemctl restart docker"
+    print_info "2. Dejar los contenedores corriendo (no afecta al desarrollo)"
+    print_info "3. Reiniciar el sistema si es necesario"
+    print_info ""
+    print_info "Los contenedores seguirán corriendo pero no interfieren con el desarrollo"
 }
 
 run_tests() {
@@ -318,8 +350,16 @@ clean_data() {
     pkill -f "ts-node-dev" || true
     
     print_info "Deteniendo y eliminando contenedores..."
-    docker-compose down -v
-    print_success "Contenedores eliminados"
+    if docker compose down -v 2>/dev/null; then
+        print_success "Contenedores eliminados"
+    else
+        print_info "Intentando con sudo..."
+        if sudo docker compose down -v 2>/dev/null; then
+            print_success "Contenedores eliminados"
+        else
+            print_error "No se pudieron eliminar los contenedores"
+        fi
+    fi
     
     print_info "Limpiando archivos generados..."
     rm -rf node_modules dist coverage
@@ -421,6 +461,16 @@ ${YELLOW}URLs:${NC}
     Health Check:   http://localhost:3000/health
     Prisma Studio:  http://localhost:5555
     PostgreSQL:     localhost:5435 (dev) / 5434 (test)
+
+${YELLOW}Permisos de Docker:${NC}
+
+    Si obtienes errores de permisos con Docker, ejecuta:
+    
+    ${GREEN}sudo usermod -aG docker \$USER${NC}
+    ${GREEN}newgrp docker${NC}
+    
+    O ejecuta los comandos con sudo:
+    ${GREEN}sudo ./test-local.sh stop${NC}
 
 EOF
 }
