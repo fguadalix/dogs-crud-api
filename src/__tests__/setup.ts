@@ -1,23 +1,29 @@
 import prisma from '../infrastructure/database/prisma';
 
-beforeAll(async () => {
-  // Ensure test database is clean
-  await prisma.$connect();
-});
+// Skip database setup only for pure unit tests (middleware, utils, etc.)
+const testPath = expect.getState().testPath || '';
+const isPureUnitTest = testPath.includes('/unit/middleware/');
 
-beforeEach(async () => {
-  // Clean up database before each test
-  await prisma.orderItem.deleteMany();
-  await prisma.item.deleteMany();
-  await prisma.userRole.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.role.deleteMany();
+if (!isPureUnitTest) {
+  beforeAll(async () => {
+    // Ensure test database is clean
+    await prisma.$connect();
+  });
 
-  // Wait a bit to avoid rate limit interference between tests
-  await new Promise((resolve) => setTimeout(resolve, 100));
-});
+  beforeEach(async () => {
+    // Clean up database before each test
+    await prisma.orderItem.deleteMany();
+    await prisma.item.deleteMany();
+    await prisma.userRole.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.role.deleteMany();
 
-afterAll(async () => {
-  // Disconnect from database
-  await prisma.$disconnect();
-});
+    // Wait a bit to avoid rate limit interference between tests
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  });
+
+  afterAll(async () => {
+    // Disconnect from database
+    await prisma.$disconnect();
+  });
+}
